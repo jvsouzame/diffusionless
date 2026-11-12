@@ -238,7 +238,7 @@ export function Toolbar(props: Props) {
       </Tool>
       <span className="divider hide-compact" />
       {/* Hovering the sound button opens its sliders; clicking still toggles the music. */}
-      <div className="sound hide-compact">
+      <div className="sound">
         <Tool label={soundOn ? t.soundOff : t.soundOn} tip={false} onClick={() => onAction('toggleSound')}>
           {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
         </Tool>
@@ -279,7 +279,7 @@ export function Toolbar(props: Props) {
         </button>
         {moreOpen && (
           <div className="menu more" role="menu" aria-label={t.more}>
-            {/* On a compact bar these three live here instead, with the status line. */}
+            {/* On a compact bar these two live here instead, with the status line. */}
             <div className="menu-info only-compact">
               <strong>{info.title}</strong>
               <span>{info.detail}</span>
@@ -287,9 +287,6 @@ export function Toolbar(props: Props) {
             <div className="only-compact">
               <Item label={t.reseed} onClick={() => run('reseed')}>
                 <RotateCcw {...icon} />
-              </Item>
-              <Item label={soundOn ? t.soundOff : t.soundOn} onClick={() => run('toggleSound')}>
-                {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
               </Item>
               <Item label={t.fullscreen} onClick={() => run('toggleFullscreen', true)}>
                 <Maximize {...icon} />

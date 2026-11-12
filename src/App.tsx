@@ -1068,6 +1068,8 @@ export default function App() {
           </div>
         )}
       </main>
+      {/* The name sits top right, outlined, mirroring the language switch on the left. */}
+      {!immersive && <h1 className={panelOpen ? 'wordmark beside-panel' : 'wordmark'}>diffusionless</h1>}
       {/* The language is always in sight, top left, as a switch showing which one is on. */}
       {!immersive && (
         <div className="segmented lang" role="group" aria-label={t.language}>
@@ -1086,7 +1088,6 @@ export default function App() {
       )}
       <footer className="bar" ref={barRef} hidden={immersive}>
         <div className="brand">
-          <h1 className="wordmark">diffusionless</h1>
           <p className="info">
             <strong>{model.name}</strong>
             {!running && ` · ${t.paused}`}
