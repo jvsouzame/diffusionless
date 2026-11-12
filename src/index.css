@@ -1,0 +1,559 @@
+:root {
+  color-scheme: dark;
+  --bg: #161617;
+  --surface: #17171a;
+  --surface-hover: #242428;
+  --border: #2a2a2f;
+  --fg: #8b8b90;
+  --fg-strong: #e6e6e8;
+  --accent: #f2f0eb;
+  --danger: #ff5d5d;
+  --font-body: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-display: 'Hedvig Letters Serif', Georgia, 'Times New Roman', serif;
+  /* Height of the bottom bar (kept in sync from script) and the gap around the canvas. */
+  --bar-h: 76px;
+  --edge: 16px;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The canvas fills the window above a bottom bar; the panel floats over it. */
+.stage {
+  position: fixed;
+  inset: var(--edge) var(--edge) var(--bar-h) var(--edge);
+  display: grid;
+  place-items: center;
+}
+
+.stage.immersive {
+  inset: 0;
+}
+
+.frame {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #000;
+}
+
+.stage.immersive .frame {
+  border-radius: 0;
+}
+
+.canvas {
+  display: block;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.canvas.picking {
+  cursor: cell;
+}
+
+/* Bottom bar: name on the left, tools on the right. */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 76px;
+  padding: 12px 28px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  z-index: 2;
+}
+
+.bar[hidden] {
+  display: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.info {
+  margin: 0;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock {
+  position: relative;
+  flex: none;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-strong);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--surface-hover);
+}
+
+.tool:focus-visible,
+.segmented button:focus-visible,
+.confirm:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tool.primary {
+  margin-left: 6px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #111113;
+  font-weight: 550;
+}
+
+.tool.primary:hover {
+  background: #ffffff;
+}
+
+.tool.recording {
+  background: var(--danger);
+  color: #1a0505;
+}
+
+.tool.recording:hover {
+  background: #ff7a7a;
+}
+
+.tool[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #2c2c31;
+  color: var(--fg-strong);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.tool[data-tip]:hover::after,
+.tool[data-tip]:focus-visible::after {
+  opacity: 1;
+  transition-delay: 0.35s;
+}
+
+.export {
+  position: relative;
+  display: flex;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 14px);
+  width: 232px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--fg);
+  font-size: 11px;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: #0f0f11;
+}
+
+.segmented button {
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.segmented button:hover {
+  color: var(--fg-strong);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--surface-hover);
+  color: var(--fg-strong);
+}
+
+.field input[type='range'] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.confirm {
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #111113;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.confirm:hover {
+  background: #ffffff;
+}
+
+.toast {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #2a1313;
+  border: 1px solid #5a2222;
+  color: #ffb4b4;
+  white-space: nowrap;
+}
+
+/* DialKit: Copy parameters and Save version are hidden; the panel title uses the display face. */
+.dialkit-panel-toolbar,
+.dialkit-versions-host {
+  display: none !important;
+}
+
+.error {
+  max-width: 40ch;
+  color: var(--fg-strong);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Keep the floating panel clear of the bottom bar. */
+.dialkit-panel,
+.dialkit-panel-inner {
+  max-height: calc(100dvh - var(--bar-h) - 48px) !important;
+}
+
+.dialkit-panel-header .dialkit-folder-title {
+  font-family: var(--font-display) !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+/* Volume slider, revealed by hovering or focusing the sound button. */
+.sound {
+  position: relative;
+  display: flex;
+}
+
+.volume {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 196px;
+  transform: translateX(-50%);
+  /* The transparent padding bridges the gap, so the pointer can travel from the button to the slider. */
+  padding-bottom: 14px;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.12s,
+    visibility 0.12s;
+}
+
+.volume > .field,
+.volume > .hint {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0 12px;
+}
+
+.volume > .field {
+  padding-top: 12px;
+  padding-bottom: 8px;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.volume > .hint {
+  padding-bottom: 10px;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  color: var(--fg);
+  font-size: 11px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+}
+
+.sound:hover .volume,
+.sound:focus-within .volume {
+  opacity: 1;
+  visibility: visible;
+}
+
+.info strong {
+  color: var(--fg-strong);
+  font-weight: 600;
+}
+
+/* The cat layer sits exactly over the simulation canvas and never takes the pointer. */
+.frame > canvas {
+  grid-area: 1 / 1;
+}
+
+.cat {
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* Cat menu: two switches. */
+.menu.compact {
+  width: 220px;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 4px;
+  padding: 6px;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.switch:hover {
+  background: var(--surface-hover);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-label {
+  color: var(--fg-strong);
+}
+
+.switch .hint {
+  color: var(--fg);
+  font-size: 11px;
+}
+
+.switch-track {
+  flex: none;
+  width: 28px;
+  height: 16px;
+  padding: 2px;
+  border-radius: 8px;
+  background: #3a3a40;
+  transition: background 0.12s;
+}
+
+.switch-thumb {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fg-strong);
+  transition: transform 0.12s;
+}
+
+.switch[aria-checked='true'] .switch-track {
+  background: var(--accent);
+}
+
+.switch[aria-checked='true'] .switch-thumb {
+  background: #111113;
+  transform: translateX(12px);
+}
+
+/* Responsive: below a laptop width the bar stacks, the tools wrap, and menus become sheets. */
+@media (max-width: 980px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .brand {
+    justify-content: space-between;
+  }
+
+  .info {
+    text-align: right;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
+}
+
+@media (max-width: 620px) {
+  :root {
+    --edge: 8px;
+  }
+
+  .frame {
+    border-radius: 12px;
+  }
+
+  .wordmark {
+    font-size: 22px;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  /* Bigger touch targets. */
+  .tool {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .tool.primary {
+    margin-left: 4px;
+  }
+
+  /* Menus open as a sheet across the screen, just above the bar. */
+  .menu,
+  .menu.compact {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--bar-h) + 8px);
+    width: auto;
+    transform: none;
+  }
+
+  .toast {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--bar-h) + 8px);
+    white-space: normal;
+  }
+}
+
+/* Touch screens have no hover: no tooltips, and no hover-only volume popover. */
+@media (hover: none) {
+  .tool[data-tip]::after,
+  .volume {
+    display: none;
+  }
+}
