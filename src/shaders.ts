@@ -125,7 +125,9 @@ void main() {
   } else {
     // Three species in cyclic competition: each is suppressed weakly (alpha) by the
     // next one and strongly (beta) by the one after, which rolls up into spiral waves.
-    float dt = uP[3];
+    // The rate slider is scaled down so the model unfolds slowly at the default speed.
+    // Diffusion and reaction share the step, so the pattern keeps its shape and only its pace changes.
+    float dt = uP[3] * 0.1;
     vec3 s = c.rgb;
     r.rgb = s + dt * (uP[2] * lap.rgb + s * (1.0 - s - p0 * s.gbr - p1 * s.brg));
     r.rgb += uJitter * 0.2 * dt * jitter;

@@ -6,7 +6,7 @@ import { DEFAULT_MODEL, MODELS, MODEL_KEYS, allParams, type ModelDef, type Param
 import { DEFAULT_PALETTE, FALLBACK_COLORS, PALETTES, PALETTE_NAMES } from './palettes'
 import { createResidents } from './cat'
 import { Sound, type SoundInput } from './sound'
-import { Toolbar, type CatOptions, type ExportFormat, type ExportOptions, type RecordingInfo } from './Toolbar'
+import { Toolbar, type CatOptions, type SoundOptions, type ExportFormat, type ExportOptions, type RecordingInfo } from './Toolbar'
 import {
   rgbToHex,
   GifRecorder,
@@ -138,11 +138,6 @@ function buildConfig(modelKey: string, colorCount: number): Any {
       size: [3, 1, 32, 1],
     },
     palette,
-    sound: {
-      _collapsed: true,
-      volume: [0.7, 0, 1, 0.01],
-      reactivity: [0.8, 0, 1, 0.01],
-    },
     tone: {
       _collapsed: true,
       contrast: [1, 0.2, 4, 0.01],
@@ -240,6 +235,23 @@ export default function App() {
   // click or key press, so until then it stays armed and starts on that gesture.
   const [soundArmed, setSoundArmed] = useState(() => stored('dl:sound') !== 'off')
   const [soundLabel, setSoundLabel] = useState('')
+  const [soundOptions, setSoundOptions] = useState<SoundOptions>(() => {
+    const clamp01 = (value: unknown, fallback: number) =>
+      typeof value === 'number' && value >= 0 && value <= 1 ? value : fallback
+    try {
+      const o = JSON.parse(stored('dl:soundopts') ?? 'null')
+      return { volume: clamp01(o?.volume, 0.7), reactivity: clamp01(o?.reactivity, 0.8) }
+    } catch {
+      return { volume: 0.7, reactivity: 0.8 }
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('dl:soundopts', JSON.stringify(soundOptions))
+    } catch {
+      /* storage unavailable */
+    }
+  }, [soundOptions])
   const [catOptions, setCatOptions] = useState<CatOptions>(() => {
     try {
       const o = JSON.parse(stored('dl:cat') ?? 'null')
@@ -358,8 +370,8 @@ export default function App() {
       dither: v.tone.dither,
       grain: v.tone.grain,
       seed: v.seed.seed,
-      volume: v.sound?.volume ?? 0.7,
-      reactivity: v.sound?.reactivity ?? 0.8,
+      volume: soundOptions.volume,
+      reactivity: soundOptions.reactivity,
     },
   }
   const soundInput = (): SoundInput => ({
@@ -974,8 +986,8 @@ export default function App() {
           <Toolbar
             running={running}
             soundOn={soundOn}
-            volume={v.sound?.volume ?? 0.7}
-            onVolume={(volume) => setValues({ sound: { volume } })}
+            sound={soundOptions}
+            onSound={setSoundOptions}
             cat={catOptions}
             onCat={setCatOptions}
             recording={recording}

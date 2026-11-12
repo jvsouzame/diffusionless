@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  Cat,
   Code,
   Dices,
   Dna,
   Download,
+  Ellipsis,
   Eraser,
-  Maximize,
   FolderOpen,
+  Maximize,
   Pause,
   Play,
   RotateCcw,
@@ -22,6 +22,7 @@ import {
 export type ExportFormat = 'png' | 'svg' | 'gif' | 'webm'
 export type ExportOptions = { format: ExportFormat; scale: number; duration: number }
 export type CatOptions = { visible: boolean; paws: boolean }
+export type SoundOptions = { volume: number; reactivity: number }
 export type RecordingInfo = { kind: 'gif' | 'webm'; until: number }
 
 const FORMATS: { value: ExportFormat; label: string }[] = [
@@ -37,8 +38,8 @@ const SOURCE_URL = 'https://github.com/jvsouzame/diffusionless'
 type Props = {
   running: boolean
   soundOn: boolean
-  volume: number
-  onVolume: (volume: number) => void
+  sound: SoundOptions
+  onSound: (next: SoundOptions) => void
   cat: CatOptions
   onCat: (next: CatOptions) => void
   recording: RecordingInfo | null
@@ -48,6 +49,8 @@ type Props = {
   onMenu: (open: boolean) => void
   onAction: (name: string) => void
 }
+
+const icon = { size: 16, strokeWidth: 1.75 }
 
 function Tool(props: { label: string; keys?: string; tip?: boolean; onClick: () => void; children: ReactNode }) {
   return (
@@ -61,6 +64,17 @@ function Tool(props: { label: string; keys?: string; tip?: boolean; onClick: () 
       onClick={props.onClick}
     >
       {props.children}
+    </button>
+  )
+}
+
+/** A row of the More menu. */
+function Item(props: { label: string; keys?: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" role="menuitem" className="item" onClick={props.onClick}>
+      {props.children}
+      <span className="item-label">{props.label}</span>
+      {props.keys && <kbd>{props.keys}</kbd>}
     </button>
   )
 }
@@ -79,6 +93,34 @@ function Switch(props: { label: string; hint: string; on: boolean; onChange: (on
   )
 }
 
+function Slider(props: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label className="field">
+      <span className="field-label">
+        {props.label} <span className="tabular">{Math.round(props.value * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={props.value}
+        aria-label={props.label}
+        onChange={(ev) => props.onChange(Number(ev.target.value))}
+      />
+    </label>
+  )
+}
+
+function SoundSliders({ sound, onSound }: { sound: SoundOptions; onSound: (next: SoundOptions) => void }) {
+  return (
+    <>
+      <Slider label="Volume" value={sound.volume} onChange={(volume) => onSound({ ...sound, volume })} />
+      <Slider label="Reactivity" value={sound.reactivity} onChange={(reactivity) => onSound({ ...sound, reactivity })} />
+    </>
+  )
+}
+
 function Remaining({ until }: { until: number }) {
   const [left, setLeft] = useState(() => Math.max(0, until - performance.now()))
   useEffect(() => {
@@ -88,18 +130,15 @@ function Remaining({ until }: { until: number }) {
   return <span className="tabular">{Math.ceil(left / 1000)}s</span>
 }
 
-export function Toolbar({ running, soundOn, volume, onVolume, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction }: Props) {
-  const exportRef = useRef<HTMLDivElement>(null)
-  const catRef = useRef<HTMLDivElement>(null)
-  const [catOpen, setCatOpen] = useState(false)
-
+/** Closes a popover on an outside press or Escape. */
+function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, close: () => void) {
   useEffect(() => {
-    if (!catOpen) return
+    if (!open) return
     const onDown = (ev: PointerEvent) => {
-      if (!catRef.current?.contains(ev.target as Node)) setCatOpen(false)
+      if (!ref.current?.contains(ev.target as Node)) close()
     }
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setCatOpen(false)
+      if (ev.key === 'Escape') close()
     }
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onKey)
@@ -107,116 +146,109 @@ export function Toolbar({ running, soundOn, volume, onVolume, cat, onCat, record
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('keydown', onKey)
     }
-  }, [catOpen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+}
+
+/**
+ * The bar shows only the main actions: play, reseed, randomize, sound, fullscreen
+ * and export. Everything else lives behind the More button.
+ */
+export function Toolbar(props: Props) {
+  const { running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
+  const exportRef = useRef<HTMLDivElement>(null)
+  const moreRef = useRef<HTMLDivElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
   const isVideo = options.format === 'gif' || options.format === 'webm'
 
-  useEffect(() => {
-    if (!menuOpen) return
-    const onDown = (ev: PointerEvent) => {
-      if (!exportRef.current?.contains(ev.target as Node)) onMenu(false)
-    }
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') onMenu(false)
-    }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen, onMenu])
+  useDismiss(menuOpen, exportRef, () => onMenu(false))
+  useDismiss(moreOpen, moreRef, () => setMoreOpen(false))
 
-  const icon = { size: 16, strokeWidth: 1.75 }
+  const run = (name: string, close = false) => {
+    onAction(name)
+    if (close) setMoreOpen(false)
+  }
 
   return (
     <div className="toolbar" role="toolbar" aria-label="Actions">
       <Tool label={running ? 'Pause' : 'Play'} keys="Space" onClick={() => onAction('toggleRun')}>
         {running ? <Pause {...icon} /> : <Play {...icon} />}
       </Tool>
-      <Tool label="Step" keys="." onClick={() => onAction('step')}>
-        <StepForward {...icon} />
-      </Tool>
-      <span className="divider" />
       <Tool label="Reseed" keys="R" onClick={() => onAction('reseed')}>
         <RotateCcw {...icon} />
       </Tool>
-      <Tool label="New seed" keys="N" onClick={() => onAction('newSeed')}>
-        <Sprout {...icon} />
-      </Tool>
-      <Tool label="Clear" keys="C" onClick={() => onAction('clear')}>
-        <Eraser {...icon} />
-      </Tool>
-      <span className="divider" />
       <Tool label="Randomize" keys="X" onClick={() => onAction('randomize')}>
         <Dices {...icon} />
       </Tool>
-      <Tool label="Mutate" keys="M" onClick={() => onAction('mutate')}>
-        <Dna {...icon} />
-      </Tool>
       <span className="divider" />
-      {/* Hovering the sound button opens the volume slider; clicking still toggles the music. */}
+      {/* Hovering the sound button opens its sliders; clicking still toggles the music. */}
       <div className="sound">
         <Tool label={soundOn ? 'Sound off' : 'Sound on'} tip={false} onClick={() => onAction('toggleSound')}>
           {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
         </Tool>
         <div className="volume">
-          <label className="field">
-            <span className="field-label">
-              Volume <span className="tabular">{Math.round(volume * 100)}%</span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              aria-label="Volume"
-              onChange={(ev) => onVolume(Number(ev.target.value))}
-            />
-          </label>
-          <span className="hint">{soundOn ? 'Click or press S to mute' : 'Click or press S to play'}</span>
-        </div>
-      </div>
-      <div className="export" ref={catRef}>
-        <button
-          type="button"
-          className="tool"
-          aria-label="Residents"
-          aria-haspopup="dialog"
-          aria-expanded={catOpen}
-          data-tip={catOpen ? undefined : 'Residents'}
-          onPointerDown={(ev) => ev.preventDefault()}
-          onClick={() => setCatOpen((open) => !open)}
-        >
-          <Cat {...icon} />
-        </button>
-        {catOpen && (
-          <div className="menu compact" role="dialog" aria-label="Residents">
-            <Switch label="Visible" hint="Show the cats and the couple" on={cat.visible} onChange={(visible) => onCat({ ...cat, visible })} />
-            <Switch label="Paws" hint="Their steps seed the pattern" on={cat.paws} onChange={(paws) => onCat({ ...cat, paws })} />
+          <div className="volume-card">
+            <SoundSliders sound={sound} onSound={onSound} />
+            <span className="hint">{soundOn ? 'Click or press S to mute' : 'Click or press S to play'}</span>
           </div>
-        )}
+        </div>
       </div>
       <Tool label="Fullscreen" keys="F" onClick={() => onAction('toggleFullscreen')}>
         <Maximize {...icon} />
       </Tool>
-      <a
-        className="tool"
-        href={SOURCE_URL}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Source code"
-        data-tip="Source code · AGPL-3.0"
-      >
-        <Code {...icon} />
-      </a>
       <span className="divider" />
-      <Tool label="Save preset" onClick={() => onAction('savePreset')}>
-        <Save {...icon} />
-      </Tool>
-      <Tool label="Load preset" onClick={() => onAction('loadPreset')}>
-        <FolderOpen {...icon} />
-      </Tool>
+      <div className="export" ref={moreRef}>
+        <button
+          type="button"
+          className="tool"
+          aria-label="More"
+          aria-haspopup="menu"
+          aria-expanded={moreOpen}
+          data-tip={moreOpen ? undefined : 'More'}
+          onPointerDown={(ev) => ev.preventDefault()}
+          onClick={() => setMoreOpen((open) => !open)}
+        >
+          <Ellipsis {...icon} />
+        </button>
+        {moreOpen && (
+          <div className="menu more" role="menu" aria-label="More">
+            <Item label="Step" keys="." onClick={() => run('step')}>
+              <StepForward {...icon} />
+            </Item>
+            <Item label="New seed" keys="N" onClick={() => run('newSeed')}>
+              <Sprout {...icon} />
+            </Item>
+            <Item label="Clear" keys="C" onClick={() => run('clear')}>
+              <Eraser {...icon} />
+            </Item>
+            <Item label="Mutate" keys="M" onClick={() => run('mutate')}>
+              <Dna {...icon} />
+            </Item>
+            <hr />
+            <Item label="Save preset" onClick={() => run('savePreset', true)}>
+              <Save {...icon} />
+            </Item>
+            <Item label="Load preset" onClick={() => run('loadPreset', true)}>
+              <FolderOpen {...icon} />
+            </Item>
+            <hr />
+            <div className="section">
+              <span className="section-title">Sound</span>
+              <SoundSliders sound={sound} onSound={onSound} />
+            </div>
+            <hr />
+            <span className="section-title">Residents</span>
+            <Switch label="Visible" hint="Show the cats and the couple" on={cat.visible} onChange={(visible) => onCat({ ...cat, visible })} />
+            <Switch label="Paws" hint="Their steps seed the pattern" on={cat.paws} onChange={(paws) => onCat({ ...cat, paws })} />
+            <hr />
+            <a className="item" role="menuitem" href={SOURCE_URL} target="_blank" rel="noreferrer">
+              <Code {...icon} />
+              <span className="item-label">Source code</span>
+              <kbd>AGPL-3.0</kbd>
+            </a>
+          </div>
+        )}
+      </div>
       <div className="export" ref={exportRef}>
         {recording ? (
           <button type="button" className="tool primary recording" onClick={() => onAction('stopRecording')}>
@@ -228,13 +260,14 @@ export function Toolbar({ running, soundOn, volume, onVolume, cat, onCat, record
           <button
             type="button"
             className="tool primary"
+            aria-label="Export"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             data-tip={menuOpen ? undefined : 'Export · E'}
+            onPointerDown={(ev) => ev.preventDefault()}
             onClick={() => onMenu(!menuOpen)}
           >
             <Download {...icon} />
-            <span>Export</span>
           </button>
         )}
         {menuOpen && !recording && (
