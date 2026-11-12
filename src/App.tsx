@@ -511,21 +511,27 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!soundArmed || soundOn) return
-    if (navigator.userActivation?.hasBeenActive) {
-      actionRef.current('startSound')
-      return
-    }
+    if (!soundArmed) return
+    // Fetch Strudel before the first tap: on a phone, audio may only be started from
+    // inside the tap itself, which leaves no time to download anything.
+    const sound = (soundRef.current ??= new Sound())
+    const warm = window.setTimeout(() => sound.preload(), 400)
     const go = (ev: Event) => {
       if (ev instanceof KeyboardEvent && (ev.key.toLowerCase() === 's' || ev.metaKey || ev.ctrlKey || ev.altKey)) return
       // The sound button handles its own click.
       if ((ev.target as HTMLElement | null)?.closest?.('.sound')) return
-      actionRef.current('startSound')
+      if (!sound.isOn) actionRef.current('startSound')
+      // Every tap re-asks the browser, until it lets the audio run.
+      else if (!sound.isAudible) sound.unlock()
     }
-    const events = ['pointerdown', 'pointerup', 'keydown'] as const
+    // touchend and click are what phones accept as a gesture; pointerup and keydown cover the rest.
+    const events = ['pointerup', 'touchend', 'click', 'keydown'] as const
     events.forEach((type) => window.addEventListener(type, go, true))
-    return () => events.forEach((type) => window.removeEventListener(type, go, true))
-  }, [soundArmed, soundOn])
+    return () => {
+      window.clearTimeout(warm)
+      events.forEach((type) => window.removeEventListener(type, go, true))
+    }
+  }, [soundArmed])
 
   const reseed = useCallback((clear = false) => {
     const e = engineRef.current

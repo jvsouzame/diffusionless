@@ -235,7 +235,33 @@ type Live = {
   map: number
 }
 
+/** A short silent WAV, used to move iOS audio out of the "ambient" category. */
+function silentWav(): string {
+  const samples = 800
+  const bytes = new Uint8Array(44 + samples)
+  const view = new DataView(bytes.buffer)
+  const text = (at: number, value: string) => [...value].forEach((ch, i) => view.setUint8(at + i, ch.charCodeAt(0)))
+  text(0, 'RIFF')
+  view.setUint32(4, 36 + samples, true)
+  text(8, 'WAVEfmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, 8000, true)
+  view.setUint32(28, 8000, true)
+  view.setUint16(32, 1, true)
+  view.setUint16(34, 8, true)
+  text(36, 'data')
+  view.setUint32(40, samples, true)
+  bytes.fill(128, 44)
+  return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }))
+}
+
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
 export class Sound {
+  private silent: HTMLAudioElement | null = null
   private strudel: Any = null
   private repl: Any = null
   private loading: Promise<void> | null = null
@@ -302,15 +328,53 @@ export class Sound {
     gain.gain.linearRampToValueAtTime(to, now + seconds)
   }
 
-  /** Must be called from a user gesture: browsers only start audio on one. */
+  /** Downloads and prepares Strudel ahead of time, so the first gesture can start audio at once. */
+  preload() {
+    this.loading ??= this.load()
+    this.loading.catch(() => {
+      this.loading = null
+    })
+  }
+
+  /** True once the browser has actually let the audio run. */
+  get isAudible() {
+    return this.strudel?.getAudioContext?.().state === 'running'
+  }
+
+  /**
+   * Asks the browser to let audio through. Phones only honour this from inside a tap
+   * or key handler, synchronously, so it must be the first thing such a handler calls
+   * and must not sit behind an `await`. Safe to call on every gesture.
+   */
+  unlock() {
+    // iPhones route Web Audio through the ringer switch. Declaring the session as
+    // playback (or, on older systems, playing a silent clip) lets it sound in silent mode.
+    const session = (navigator as Any).audioSession
+    if (session) {
+      try {
+        session.type = 'playback'
+      } catch {
+        /* not settable here */
+      }
+    } else if (isIOS()) {
+      this.silent ??= Object.assign(new Audio(silentWav()), { loop: true })
+      void this.silent.play().catch(() => {})
+    }
+    const ac: AudioContext | undefined = this.strudel?.getAudioContext?.()
+    if (ac && ac.state !== 'running') void ac.resume().catch(() => {})
+  }
+
+  /** Call from a user gesture: browsers only start audio on one. */
   async start(input: SoundInput) {
     this.input = input
     this.active = true
     window.clearTimeout(this.stopTimer)
+    this.unlock()
     this.loading ??= this.load()
     await this.loading
     if (!this.active) return
-    await this.strudel.getAudioContext().resume()
+    // Not awaited: where the gesture has expired this would never settle. The next tap unlocks it.
+    this.unlock()
     const gain = this.master()
     if (gain && !this.repl.scheduler.started) gain.gain.value = 0
     this.retarget(true)
@@ -329,6 +393,7 @@ export class Sound {
     window.clearInterval(this.timer)
     this.ramp(0, FADE_OUT)
     this.onLabel('')
+    this.silent?.pause()
     window.clearTimeout(this.stopTimer)
     this.stopTimer = window.setTimeout(() => {
       if (!this.active) this.repl?.stop()
