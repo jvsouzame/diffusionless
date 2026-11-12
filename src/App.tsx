@@ -4,6 +4,7 @@ import 'dialkit/styles.css'
 import { Engine, type DisplayParams, type SeedParams, type SimParams } from './engine'
 import { DEFAULT_MODEL, MODELS, MODEL_KEYS, allParams, type ModelDef, type ParamDef } from './models'
 import { DEFAULT_PALETTE, FALLBACK_COLORS, PALETTES, PALETTE_NAMES } from './palettes'
+import { X } from 'lucide-react'
 import { createResidents } from './cat'
 import { STRINGS, canonicalValues, localizeConfig, localizeValues, soundLabel as translateSound, type Lang } from './i18n'
 import { Sound, type SoundInput } from './sound'
@@ -1007,6 +1008,22 @@ export default function App() {
           </div>
         )}
       </main>
+      {/* The language is always in sight, top left, as a switch showing which one is on. */}
+      {!immersive && (
+        <div className="segmented lang" role="group" aria-label={t.language}>
+          {(['en', 'pt'] as const).map((code) => (
+            <button
+              key={code}
+              type="button"
+              lang={code === 'pt' ? 'pt-BR' : 'en'}
+              aria-pressed={lang === code}
+              onClick={() => switchLang(code)}
+            >
+              {code === 'en' ? 'EN' : 'PT/BR'}
+            </button>
+          ))}
+        </div>
+      )}
       <footer className="bar" ref={barRef} hidden={immersive}>
         <div className="brand">
           <h1 className="wordmark">diffusionless</h1>
@@ -1032,7 +1049,6 @@ export default function App() {
           <Toolbar
             t={t}
             lang={lang}
-            onLang={switchLang}
             panelOpen={panelOpen}
             running={running}
             soundOn={soundOn}
@@ -1052,6 +1068,14 @@ export default function App() {
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} />
       {panelOpen && !immersive && (
         <aside className="sidebar" aria-label={t.controls}>
+          <button
+            type="button"
+            className="sidebar-close"
+            aria-label={t.close}
+            onClick={() => setPanelOpen(false)}
+          >
+            <X size={16} strokeWidth={1.75} />
+          </button>
           <DialRoot mode="inline" theme="dark" productionEnabled />
         </aside>
       )}

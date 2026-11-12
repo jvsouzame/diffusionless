@@ -40,7 +40,6 @@ const SOURCE_URL = 'https://github.com/jvsouzame/diffusionless'
 type Props = {
   t: Strings
   lang: Lang
-  onLang: (lang: Lang) => void
   panelOpen: boolean
   running: boolean
   soundOn: boolean
@@ -161,7 +160,7 @@ function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, clo
  * and export. Everything else lives behind the More button.
  */
 export function Toolbar(props: Props) {
-  const { t, lang, onLang, panelOpen, running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
+  const { t, lang, panelOpen, running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
   const exportRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLDivElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -177,15 +176,6 @@ export function Toolbar(props: Props) {
 
   return (
     <div className="toolbar" role="toolbar" aria-label={t.actions}>
-      {/* The language is always in sight, as a two-way switch showing which one is on. */}
-      <div className="segmented lang" role="group" aria-label={t.language}>
-        {(['en', 'pt'] as const).map((code) => (
-          <button key={code} type="button" lang={code} aria-pressed={lang === code} onClick={() => onLang(code)}>
-            {code === 'en' ? 'English' : 'Português'}
-          </button>
-        ))}
-      </div>
-      <span className="divider" />
       <Tool label={running ? t.pause : t.play} keys={lang === 'pt' ? 'Espaço' : 'Space'} onClick={() => onAction('toggleRun')}>
         {running ? <Pause {...icon} /> : <Play {...icon} />}
       </Tool>

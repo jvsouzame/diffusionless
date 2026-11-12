@@ -678,7 +678,13 @@ button {
 
 /* Language switch. */
 .segmented.lang {
-  flex: none;
+  position: fixed;
+  top: calc(var(--edge) + 12px);
+  left: calc(var(--edge) + 12px);
+  z-index: 3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
 }
 
 .segmented.lang button {
@@ -706,4 +712,39 @@ button {
     bottom: calc(var(--bar-h) + 4px);
     box-shadow: 0 -12px 32px rgb(0 0 0 / 0.5);
   }
+}
+
+/* Sidebar header: the title sits on its own background, so the divider under it goes, and a close button joins it. */
+.sidebar {
+  position: fixed;
+}
+
+.sidebar .dialkit-panel-header {
+  border-bottom: 0 !important;
+}
+
+.sidebar-close {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.sidebar-close:hover {
+  background: var(--surface-hover);
+  color: var(--fg-strong);
+}
+
+.sidebar-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

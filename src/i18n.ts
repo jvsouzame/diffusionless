@@ -15,6 +15,7 @@ export type Lang = 'en' | 'pt'
 const en = {
   actions: 'Actions',
   language: 'Language',
+  close: 'Close',
   play: 'Play',
   pause: 'Pause',
   reseed: 'Reseed',
@@ -63,6 +64,7 @@ const en = {
 const pt: typeof en = {
   actions: 'Ações',
   language: 'Idioma',
+  close: 'Fechar',
   play: 'Reproduzir',
   pause: 'Pausar',
   reseed: 'Semear de novo',
