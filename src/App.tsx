@@ -299,7 +299,10 @@ export default function App() {
   const dial = useDialKitController(t.controls, panelConfig, { id: 'diffusionless', persist: true })
   const v = useMemo(() => canonicalValues(dial.values, lang), [dial.values, lang]) as Any
   const rawSetValues = dial.setValues as (values: Any) => void
-  const setValues = useCallback((values: Any) => rawSetValues(localizeValues(values, lang)), [rawSetValues, lang])
+  const setValues = useCallback(
+    (values: Any) => rawSetValues(localizeValues(values, lang, modelKey)),
+    [rawSetValues, lang, modelKey],
+  )
 
   // The config depends on two of its own values; keep it in step with them.
   useEffect(() => {
