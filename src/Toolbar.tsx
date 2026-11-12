@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Cat,
+  Code,
   Dices,
   Dna,
   Download,
@@ -30,6 +31,8 @@ const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: 'webm', label: 'WebM' },
 ]
 const SCALES = [1, 2, 4, 8]
+/** The AGPL asks that anyone using the site can reach its source. */
+const SOURCE_URL = 'https://github.com/jvsouzame/diffusionless'
 
 type Props = {
   running: boolean
@@ -197,6 +200,16 @@ export function Toolbar({ running, soundOn, volume, onVolume, cat, onCat, record
       <Tool label="Fullscreen" keys="F" onClick={() => onAction('toggleFullscreen')}>
         <Maximize {...icon} />
       </Tool>
+      <a
+        className="tool"
+        href={SOURCE_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Source code"
+        data-tip="Source code · AGPL-3.0"
+      >
+        <Code {...icon} />
+      </a>
       <span className="divider" />
       <Tool label="Save preset" onClick={() => onAction('savePreset')}>
         <Save {...icon} />

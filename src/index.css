@@ -557,3 +557,7 @@ button {
     display: none;
   }
 }
+
+a.tool {
+  text-decoration: none;
+}
