@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import type { Lang, Strings } from './i18n'
 import {
   Code,
   Dices,
@@ -11,6 +12,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  SlidersHorizontal,
   Save,
   Sprout,
   Square,
@@ -36,6 +38,10 @@ const SCALES = [1, 2, 4, 8]
 const SOURCE_URL = 'https://github.com/jvsouzame/diffusionless'
 
 type Props = {
+  t: Strings
+  lang: Lang
+  onLang: (lang: Lang) => void
+  panelOpen: boolean
   running: boolean
   soundOn: boolean
   sound: SoundOptions
@@ -112,11 +118,11 @@ function Slider(props: { label: string; value: number; onChange: (value: number)
   )
 }
 
-function SoundSliders({ sound, onSound }: { sound: SoundOptions; onSound: (next: SoundOptions) => void }) {
+function SoundSliders({ t, sound, onSound }: { t: Strings; sound: SoundOptions; onSound: (next: SoundOptions) => void }) {
   return (
     <>
-      <Slider label="Volume" value={sound.volume} onChange={(volume) => onSound({ ...sound, volume })} />
-      <Slider label="Reactivity" value={sound.reactivity} onChange={(reactivity) => onSound({ ...sound, reactivity })} />
+      <Slider label={t.volume} value={sound.volume} onChange={(volume) => onSound({ ...sound, volume })} />
+      <Slider label={t.reactivity} value={sound.reactivity} onChange={(reactivity) => onSound({ ...sound, reactivity })} />
     </>
   )
 }
@@ -155,7 +161,7 @@ function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, clo
  * and export. Everything else lives behind the More button.
  */
 export function Toolbar(props: Props) {
-  const { running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
+  const { t, lang, onLang, panelOpen, running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
   const exportRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLDivElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -170,80 +176,100 @@ export function Toolbar(props: Props) {
   }
 
   return (
-    <div className="toolbar" role="toolbar" aria-label="Actions">
-      <Tool label={running ? 'Pause' : 'Play'} keys="Space" onClick={() => onAction('toggleRun')}>
+    <div className="toolbar" role="toolbar" aria-label={t.actions}>
+      {/* The language is always in sight, as a two-way switch showing which one is on. */}
+      <div className="segmented lang" role="group" aria-label={t.language}>
+        {(['en', 'pt'] as const).map((code) => (
+          <button key={code} type="button" lang={code} aria-pressed={lang === code} onClick={() => onLang(code)}>
+            {code === 'en' ? 'English' : 'Português'}
+          </button>
+        ))}
+      </div>
+      <span className="divider" />
+      <Tool label={running ? t.pause : t.play} keys={lang === 'pt' ? 'Espaço' : 'Space'} onClick={() => onAction('toggleRun')}>
         {running ? <Pause {...icon} /> : <Play {...icon} />}
       </Tool>
-      <Tool label="Reseed" keys="R" onClick={() => onAction('reseed')}>
+      <Tool label={t.reseed} keys="R" onClick={() => onAction('reseed')}>
         <RotateCcw {...icon} />
       </Tool>
-      <Tool label="Randomize" keys="X" onClick={() => onAction('randomize')}>
+      <Tool label={t.randomize} keys="X" onClick={() => onAction('randomize')}>
         <Dices {...icon} />
       </Tool>
       <span className="divider" />
       {/* Hovering the sound button opens its sliders; clicking still toggles the music. */}
       <div className="sound">
-        <Tool label={soundOn ? 'Sound off' : 'Sound on'} tip={false} onClick={() => onAction('toggleSound')}>
+        <Tool label={soundOn ? t.soundOff : t.soundOn} tip={false} onClick={() => onAction('toggleSound')}>
           {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
         </Tool>
         <div className="volume">
           <div className="volume-card">
-            <SoundSliders sound={sound} onSound={onSound} />
-            <span className="hint">{soundOn ? 'Click or press S to mute' : 'Click or press S to play'}</span>
+            <SoundSliders t={t} sound={sound} onSound={onSound} />
+            <span className="hint">{soundOn ? t.muteHint : t.playHint}</span>
           </div>
         </div>
       </div>
-      <Tool label="Fullscreen" keys="F" onClick={() => onAction('toggleFullscreen')}>
+      <Tool label={t.fullscreen} keys="F" onClick={() => onAction('toggleFullscreen')}>
         <Maximize {...icon} />
       </Tool>
+      <button
+        type="button"
+        className="tool"
+        aria-label={t.controls}
+        aria-pressed={panelOpen}
+        data-tip={`${t.controls} · D`}
+        onPointerDown={(ev) => ev.preventDefault()}
+        onClick={() => onAction('togglePanel')}
+      >
+        <SlidersHorizontal {...icon} />
+      </button>
       <span className="divider" />
       <div className="export" ref={moreRef}>
         <button
           type="button"
           className="tool"
-          aria-label="More"
+          aria-label={t.more}
           aria-haspopup="menu"
           aria-expanded={moreOpen}
-          data-tip={moreOpen ? undefined : 'More'}
+          data-tip={moreOpen ? undefined : t.more}
           onPointerDown={(ev) => ev.preventDefault()}
           onClick={() => setMoreOpen((open) => !open)}
         >
           <Ellipsis {...icon} />
         </button>
         {moreOpen && (
-          <div className="menu more" role="menu" aria-label="More">
-            <Item label="Step" keys="." onClick={() => run('step')}>
+          <div className="menu more" role="menu" aria-label={t.more}>
+            <Item label={t.step} keys="." onClick={() => run('step')}>
               <StepForward {...icon} />
             </Item>
-            <Item label="New seed" keys="N" onClick={() => run('newSeed')}>
+            <Item label={t.newSeed} keys="N" onClick={() => run('newSeed')}>
               <Sprout {...icon} />
             </Item>
-            <Item label="Clear" keys="C" onClick={() => run('clear')}>
+            <Item label={t.clear} keys="C" onClick={() => run('clear')}>
               <Eraser {...icon} />
             </Item>
-            <Item label="Mutate" keys="M" onClick={() => run('mutate')}>
+            <Item label={t.mutate} keys="M" onClick={() => run('mutate')}>
               <Dna {...icon} />
             </Item>
             <hr />
-            <Item label="Save preset" onClick={() => run('savePreset', true)}>
+            <Item label={t.savePreset} onClick={() => run('savePreset', true)}>
               <Save {...icon} />
             </Item>
-            <Item label="Load preset" onClick={() => run('loadPreset', true)}>
+            <Item label={t.loadPreset} onClick={() => run('loadPreset', true)}>
               <FolderOpen {...icon} />
             </Item>
             <hr />
             <div className="section">
-              <span className="section-title">Sound</span>
-              <SoundSliders sound={sound} onSound={onSound} />
+              <span className="section-title">{t.sound}</span>
+              <SoundSliders t={t} sound={sound} onSound={onSound} />
             </div>
             <hr />
-            <span className="section-title">Residents</span>
-            <Switch label="Visible" hint="Show the cats and the couple" on={cat.visible} onChange={(visible) => onCat({ ...cat, visible })} />
-            <Switch label="Paws" hint="Their steps seed the pattern" on={cat.paws} onChange={(paws) => onCat({ ...cat, paws })} />
+            <span className="section-title">{t.residents}</span>
+            <Switch label={t.visible} hint={t.visibleHint} on={cat.visible} onChange={(visible) => onCat({ ...cat, visible })} />
+            <Switch label={t.paws} hint={t.pawsHint} on={cat.paws} onChange={(paws) => onCat({ ...cat, paws })} />
             <hr />
             <a className="item" role="menuitem" href={SOURCE_URL} target="_blank" rel="noreferrer">
               <Code {...icon} />
-              <span className="item-label">Source code</span>
+              <span className="item-label">{t.source}</span>
               <kbd>AGPL-3.0</kbd>
             </a>
           </div>
@@ -253,17 +279,17 @@ export function Toolbar(props: Props) {
         {recording ? (
           <button type="button" className="tool primary recording" onClick={() => onAction('stopRecording')}>
             <Square size={12} strokeWidth={0} fill="currentColor" />
-            <span>Stop</span>
+            <span>{t.stop}</span>
             <Remaining until={recording.until} />
           </button>
         ) : (
           <button
             type="button"
             className="tool primary"
-            aria-label="Export"
+            aria-label={t.export}
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
-            data-tip={menuOpen ? undefined : 'Export · E'}
+            data-tip={menuOpen ? undefined : `${t.export} · E`}
             onPointerDown={(ev) => ev.preventDefault()}
             onClick={() => onMenu(!menuOpen)}
           >
@@ -271,9 +297,9 @@ export function Toolbar(props: Props) {
           </button>
         )}
         {menuOpen && !recording && (
-          <div className="menu" role="dialog" aria-label="Export">
+          <div className="menu" role="dialog" aria-label={t.export}>
             <div className="field">
-              <span className="field-label">Format</span>
+              <span className="field-label">{t.format}</span>
               <div className="segmented">
                 {FORMATS.map((f) => (
                   <button
@@ -288,7 +314,7 @@ export function Toolbar(props: Props) {
               </div>
             </div>
             <div className="field">
-              <span className="field-label">Scale</span>
+              <span className="field-label">{t.scale}</span>
               <div className="segmented">
                 {SCALES.map((s) => (
                   <button
@@ -305,7 +331,7 @@ export function Toolbar(props: Props) {
             {isVideo && (
               <label className="field">
                 <span className="field-label">
-                  Duration <span className="tabular">{options.duration}s</span>
+                  {t.duration} <span className="tabular">{options.duration}s</span>
                 </span>
                 <input
                   type="range"
@@ -325,7 +351,7 @@ export function Toolbar(props: Props) {
                 onAction(options.format)
               }}
             >
-              {isVideo ? 'Record' : 'Export'} {FORMATS.find((f) => f.value === options.format)?.label}
+              {isVideo ? t.record : t.export} {FORMATS.find((f) => f.value === options.format)?.label}
             </button>
           </div>
         )}

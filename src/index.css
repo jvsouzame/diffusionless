@@ -322,11 +322,7 @@ button {
   line-height: 1.5;
 }
 
-/* Keep the floating panel clear of the bottom bar. */
-.dialkit-panel,
-.dialkit-panel-inner {
-  max-height: calc(100dvh - var(--bar-h) - 48px) !important;
-}
+
 
 .dialkit-panel-header .dialkit-folder-title {
   font-family: var(--font-display) !important;
@@ -643,5 +639,71 @@ button {
 
   .item {
     min-height: 40px;
+  }
+}
+
+/* Parameter panel as a sidebar: the canvas makes room for it on the right. */
+:root {
+  --side: 304px;
+}
+
+.stage.with-panel {
+  right: calc(var(--edge) * 2 + var(--side));
+}
+
+.sidebar {
+  position: fixed;
+  top: var(--edge);
+  right: var(--edge);
+  bottom: var(--bar-h);
+  width: var(--side);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  z-index: 3;
+}
+
+.sidebar .dialkit-panel-inner {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  width: 100% !important;
+}
+
+.tool[aria-pressed='true'] {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+/* Language switch. */
+.segmented.lang {
+  flex: none;
+}
+
+.segmented.lang button {
+  padding: 0 10px;
+}
+
+.segmented.lang button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #111113;
+  font-weight: 550;
+}
+
+@media (max-width: 760px) {
+  /* No room beside the canvas: the panel becomes a sheet over its lower half. */
+  .stage.with-panel {
+    right: var(--edge);
+  }
+
+  .sidebar {
+    top: auto;
+    left: var(--edge);
+    right: var(--edge);
+    width: auto;
+    max-height: 55dvh;
+    bottom: calc(var(--bar-h) + 4px);
+    box-shadow: 0 -12px 32px rgb(0 0 0 / 0.5);
   }
 }

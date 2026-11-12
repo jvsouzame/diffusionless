@@ -14,7 +14,9 @@ npm run dev
 - **Residents:** three tiny pixel cats and a couple live on the canvas (`src/cat.ts`). Each cat sometimes follows the pointer and sometimes plays or sits by itself; the couple strolls together. Cats nap when the simulation is paused, and everyone's steps seed the pattern. They are never part of an export; the More menu in the bottom bar hides them or stops the steps.
 - **Export:** PNG, SVG (one fused shape per color), WebM, GIF and a JSON preset that stores the parameters and the grid.
 
-The panel is [DialKit](https://github.com/joshpuckett/dialkit).
+The parameter panel is [DialKit](https://github.com/joshpuckett/dialkit). It opens as a sidebar from the bottom bar (D), and the canvas makes room for it.
+
+The interface is in English or Portuguese (`src/i18n.ts`); the switch is always visible in the bottom bar.
 
 ## License
 

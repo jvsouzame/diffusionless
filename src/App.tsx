@@ -5,6 +5,7 @@ import { Engine, type DisplayParams, type SeedParams, type SimParams } from './e
 import { DEFAULT_MODEL, MODELS, MODEL_KEYS, allParams, type ModelDef, type ParamDef } from './models'
 import { DEFAULT_PALETTE, FALLBACK_COLORS, PALETTES, PALETTE_NAMES } from './palettes'
 import { createResidents } from './cat'
+import { STRINGS, canonicalValues, localizeConfig, localizeValues, soundLabel as translateSound, type Lang } from './i18n'
 import { Sound, type SoundInput } from './sound'
 import { Toolbar, type CatOptions, type SoundOptions, type ExportFormat, type ExportOptions, type RecordingInfo } from './Toolbar'
 import {
@@ -41,6 +42,7 @@ const SHORTCUTS: Record<string, string> = {
   e: 'toggleExport',
   s: 'toggleSound',
   f: 'toggleFullscreen',
+  d: 'togglePanel',
 }
 /** Size of one cat pixel in CSS pixels. Small on purpose: the cat is meant to be tiny. */
 const CAT_PIXEL = 3
@@ -196,7 +198,7 @@ function loadExportOptions(): ExportOptions {
   }
 }
 
-type Pending = { values: Any; grid?: { w: number; h: number; data: Float32Array } }
+type Pending = { values: Any; grid?: { w: number; h: number; data: Float32Array }; hold?: boolean }
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -235,6 +237,23 @@ export default function App() {
   // click or key press, so until then it stays armed and starts on that gesture.
   const [soundArmed, setSoundArmed] = useState(() => stored('dl:sound') !== 'off')
   const [soundLabel, setSoundLabel] = useState('')
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = stored('dl:lang')
+    if (saved === 'en' || saved === 'pt') return saved
+    return navigator.language?.toLowerCase().startsWith('pt') ? 'pt' : 'en'
+  })
+  const t = STRINGS[lang]
+  // The parameter panel opens as a sidebar from the bottom bar, and stays closed until asked for.
+  const [panelOpen, setPanelOpen] = useState(() => stored('dl:panel') === 'open')
+  useEffect(() => {
+    try {
+      localStorage.setItem('dl:lang', lang)
+      localStorage.setItem('dl:panel', panelOpen ? 'open' : 'closed')
+    } catch {
+      /* storage unavailable */
+    }
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en'
+  }, [lang, panelOpen])
   const [soundOptions, setSoundOptions] = useState<SoundOptions>(() => {
     const clamp01 = (value: unknown, fallback: number) =>
       typeof value === 'number' && value >= 0 && value <= 1 ? value : fallback
@@ -274,9 +293,12 @@ export default function App() {
 
   const config = useMemo(() => buildConfig(modelKey, colorCount), [modelKey, colorCount])
   const actionRef = useRef<(name: string) => void>(() => {})
-  const dial = useDialKitController('Controls', config, { id: 'diffusionless', persist: true })
-  const v = dial.values as Any
-  const setValues = dial.setValues as (values: Any) => void
+  // The panel speaks the chosen language; everything else here uses the canonical keys.
+  const panelConfig = useMemo(() => localizeConfig(config, lang), [config, lang])
+  const dial = useDialKitController(t.controls, panelConfig, { id: 'diffusionless', persist: true })
+  const v = useMemo(() => canonicalValues(dial.values, lang), [dial.values, lang]) as Any
+  const rawSetValues = dial.setValues as (values: Any) => void
+  const setValues = useCallback((values: Any) => rawSetValues(localizeValues(values, lang)), [rawSetValues, lang])
 
   // The config depends on two of its own values; keep it in step with them.
   useEffect(() => {
@@ -353,6 +375,8 @@ export default function App() {
     config,
     fill,
     soundOn,
+    lang,
+    t,
     cat: catOptions,
     sound: {
       model: model.index,
@@ -491,7 +515,7 @@ export default function App() {
     const go = (ev: Event) => {
       if (ev instanceof KeyboardEvent && (ev.key.toLowerCase() === 's' || ev.metaKey || ev.ctrlKey || ev.altKey)) return
       // The sound button handles its own click.
-      if ((ev.target as HTMLElement | null)?.closest?.('[aria-label^="Sound"]')) return
+      if ((ev.target as HTMLElement | null)?.closest?.('.sound')) return
       actionRef.current('startSound')
     }
     const events = ['pointerdown', 'pointerup', 'keydown'] as const
@@ -692,7 +716,13 @@ export default function App() {
     if (wantModel !== modelKey || wantColors !== colorCount) return
     setValues(pickValues(config, pending.values))
     const grid = pending.grid
+    const hold = pending.hold
     setPending(null)
+    if (hold && !grid) {
+      window.setTimeout(() => {
+        holdSeedRef.current = false
+      }, 200)
+    }
     if (grid) {
       // Hold automatic reseeds while the loaded values settle, then restore the saved grid.
       holdSeedRef.current = true
@@ -703,6 +733,16 @@ export default function App() {
       }, 200)
     }
   }, [pending, modelKey, colorCount, config, setValues, layout])
+
+  // Switching language renames the panel's keys, which would reset its values. Carry them
+  // across, and hold automatic reseeds meanwhile so the pattern on screen is not lost.
+  const switchLang = (next: Lang) => {
+    if (next === lang) return
+    const values = pickValues(config, canonicalValues(dial.getValues(), lang))
+    holdSeedRef.current = true
+    setLang(next)
+    setPending({ values, hold: true })
+  }
 
   const fileName = (ext: string) => {
     const L = latest.current
@@ -760,16 +800,19 @@ export default function App() {
         } else {
           setSoundOn(true)
           if (name === 'toggleSound') remember(true)
-          sound.start(soundInput()).catch((err) => {
+          sound.start(soundInput()).catch(() => {
             setSoundOn(false)
-            setStatus(err instanceof Error ? `Sound failed: ${err.message}` : 'Sound failed to start')
+            setStatus(L.t.soundFailed)
           })
         }
         break
       }
+      case 'togglePanel':
+        setPanelOpen((open) => !open)
+        break
       case 'toggleFullscreen':
         if (document.fullscreenElement) void document.exitFullscreen()
-        else void document.documentElement.requestFullscreen().catch(() => setStatus('Fullscreen is not available'))
+        else void document.documentElement.requestFullscreen().catch(() => setStatus(L.t.noFullscreen))
         break
       case 'toggleExport':
         if (!recRef.current) setMenuOpen((o) => !o)
@@ -807,7 +850,7 @@ export default function App() {
           (t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t),
         )
         if (!mime) {
-          setStatus('Video recording is not supported in this browser')
+          setStatus(L.t.noVideo)
           break
         }
         const s = Math.max(L.exportScale, Math.ceil(512 / Math.max(e.w, e.h)))
@@ -840,7 +883,7 @@ export default function App() {
         const data = {
           app: 'diffusionless',
           version: 1,
-          values: pickValues(L.config, dial.getValues()),
+          values: pickValues(L.config, canonicalValues(dial.getValues(), L.lang)),
           grid: { w: e.w, h: e.h, data: floatsToBase64(e.readState()) },
         }
         download(new Blob([JSON.stringify(data)], { type: 'application/json' }), fileName('json'))
@@ -859,17 +902,17 @@ export default function App() {
     try {
       const data = JSON.parse(await file.text())
       if (!['diffusionless', 'pixeldiffusion'].includes(data.app) || !data.values || !MODELS[data.values.model]) {
-        throw new Error('Not a diffusionless preset')
+        throw new Error(t.notPreset)
       }
       const grid = data.grid
         ? { w: data.grid.w, h: data.grid.h, data: base64ToFloats(data.grid.data) }
         : undefined
-      if (grid && grid.data.length !== grid.w * grid.h * 4) throw new Error('Preset grid is corrupted')
+      if (grid && grid.data.length !== grid.w * grid.h * 4) throw new Error(t.corruptPreset)
       setValues({ model: data.values.model, palette: { colors: data.values.palette?.colors ?? colorCount } })
       setPending({ values: data.values, grid })
       setStatus('')
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Could not read preset')
+      setStatus(err instanceof Error && [t.notPreset, t.corruptPreset].includes(err.message) ? err.message : t.unreadablePreset)
     }
   }
 
@@ -942,7 +985,10 @@ export default function App() {
 
   return (
     <>
-      <main className={immersive ? 'stage immersive' : 'stage'} ref={stageRef}>
+      <main
+        className={immersive ? 'stage immersive' : panelOpen ? 'stage with-panel' : 'stage'}
+        ref={stageRef}
+      >
         {error ? (
           <p className="error">{error}</p>
         ) : (
@@ -966,15 +1012,15 @@ export default function App() {
           <h1 className="wordmark">diffusionless</h1>
           <p className="info">
             <strong>{model.name}</strong>
-            {!running && ' · paused'}
+            {!running && ` · ${t.paused}`}
             <br />
             {v.explore.parameterMap
-              ? `Map: ${model.padX.label} → x, ${model.padY.label} → y · click the canvas to pick`
+              ? t.mapHint.replace('{x}', model.padX.label).replace('{y}', model.padY.label)
               : soundOn
-                ? soundLabel || 'Loading sound…'
+                ? translateSound(soundLabel, lang) || t.soundLoading
                 : soundArmed
-                  ? 'Sound starts with your first click or key'
-                  : 'Sound off'}
+                  ? t.soundArmed
+                  : t.soundOffInfo}
           </p>
         </div>
         <div className="dock">
@@ -984,6 +1030,10 @@ export default function App() {
             </p>
           )}
           <Toolbar
+            t={t}
+            lang={lang}
+            onLang={switchLang}
+            panelOpen={panelOpen}
             running={running}
             soundOn={soundOn}
             sound={soundOptions}
@@ -1000,8 +1050,10 @@ export default function App() {
         </div>
       </footer>
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} />
-      {!immersive && (
-        <DialRoot position="top-right" theme="dark" productionEnabled defaultOpen={window.innerWidth > 760} />
+      {panelOpen && !immersive && (
+        <aside className="sidebar" aria-label={t.controls}>
+          <DialRoot mode="inline" theme="dark" productionEnabled />
+        </aside>
       )}
     </>
   )
