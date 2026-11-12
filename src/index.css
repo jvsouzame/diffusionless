@@ -387,8 +387,17 @@ button {
 }
 
 .cat {
+  /* Its own stacking level and compositing layer: some mobile browsers otherwise paint
+     the WebGL canvas over a sibling that only follows it in source order. */
+  position: relative;
+  z-index: 1;
+  transform: translateZ(0);
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+.frame {
+  isolation: isolate;
 }
 
 /* Cat menu: two switches. */
