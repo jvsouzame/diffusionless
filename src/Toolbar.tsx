@@ -9,12 +9,14 @@ import {
   Eraser,
   FolderOpen,
   Maximize,
+  Paintbrush,
   Pause,
   Play,
   RotateCcw,
   SlidersHorizontal,
   Save,
   Sprout,
+  Trash2,
   Square,
   StepForward,
   Volume2,
@@ -41,6 +43,9 @@ type Props = {
   t: Strings
   lang: Lang
   panelOpen: boolean
+  erasing: boolean
+  /** Model and sound status, shown inside the More menu where the bar has no room for them. */
+  info: { title: string; detail: string }
   running: boolean
   soundOn: boolean
   sound: SoundOptions
@@ -57,12 +62,21 @@ type Props = {
 
 const icon = { size: 16, strokeWidth: 1.75 }
 
-function Tool(props: { label: string; keys?: string; tip?: boolean; onClick: () => void; children: ReactNode }) {
+function Tool(props: {
+  label: string
+  keys?: string
+  tip?: boolean
+  className?: string
+  pressed?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
   return (
     <button
       type="button"
-      className="tool"
+      className={props.className ? `tool ${props.className}` : 'tool'}
       aria-label={props.label}
+      aria-pressed={props.pressed}
       data-tip={props.tip === false ? undefined : props.keys ? `${props.label} · ${props.keys}` : props.label}
       // Keep focus off the bar on mouse use, so Space keeps meaning play/pause.
       onPointerDown={(ev) => ev.preventDefault()}
@@ -160,7 +174,7 @@ function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, clo
  * and export. Everything else lives behind the More button.
  */
 export function Toolbar(props: Props) {
-  const { t, lang, panelOpen, running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
+  const { t, lang, panelOpen, erasing, info, running, soundOn, sound, onSound, cat, onCat, recording, options, menuOpen, onOptions, onMenu, onAction } = props
   const exportRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLDivElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -169,25 +183,62 @@ export function Toolbar(props: Props) {
   useDismiss(menuOpen, exportRef, () => onMenu(false))
   useDismiss(moreOpen, moreRef, () => setMoreOpen(false))
 
+  // Touch has no hover, so a long press shows a button's name instead of pressing it.
+  const press = useRef<{ timer: number; shown: HTMLElement | null }>({ timer: 0, shown: null })
+  const onTouchDown = (ev: React.PointerEvent) => {
+    if (ev.pointerType !== 'touch') return
+    const tool = (ev.target as HTMLElement).closest<HTMLElement>('.tool[data-tip]')
+    if (!tool) return
+    window.clearTimeout(press.current.timer)
+    press.current.timer = window.setTimeout(() => {
+      press.current.shown = tool
+      tool.classList.add('tip-on')
+      window.setTimeout(() => {
+        tool.classList.remove('tip-on')
+        if (press.current.shown === tool) press.current.shown = null
+      }, 1600)
+    }, 450)
+  }
+  const onTouchEnd = () => window.clearTimeout(press.current.timer)
+  const onClickCapture = (ev: React.MouseEvent) => {
+    // The press that revealed a name does not also trigger the button.
+    if (press.current.shown && (ev.target as HTMLElement).closest('.tool') === press.current.shown) {
+      ev.preventDefault()
+      ev.stopPropagation()
+    }
+  }
+
   const run = (name: string, close = false) => {
     onAction(name)
     if (close) setMoreOpen(false)
   }
 
   return (
-    <div className="toolbar" role="toolbar" aria-label={t.actions}>
+    <div
+      className="toolbar"
+      role="toolbar"
+      aria-label={t.actions}
+      onPointerDown={onTouchDown}
+      onPointerUp={onTouchEnd}
+      onPointerCancel={onTouchEnd}
+      onClickCapture={onClickCapture}
+    >
       <Tool label={running ? t.pause : t.play} keys={lang === 'pt' ? 'Espaço' : 'Space'} onClick={() => onAction('toggleRun')}>
         {running ? <Pause {...icon} /> : <Play {...icon} />}
       </Tool>
-      <Tool label={t.reseed} keys="R" onClick={() => onAction('reseed')}>
+      <Tool label={t.reseed} keys="R" className="hide-compact" onClick={() => onAction('reseed')}>
         <RotateCcw {...icon} />
       </Tool>
       <Tool label={t.randomize} keys="X" onClick={() => onAction('randomize')}>
         <Dices {...icon} />
       </Tool>
-      <span className="divider" />
+      {/* The canvas tool: what a drag does. The only way to erase on a touch screen. */}
+      <Tool label={erasing ? t.eraser : t.brush} keys="B" pressed={erasing} onClick={() => onAction('toggleEraser')}>
+        {erasing ? <Eraser {...icon} /> : <Paintbrush {...icon} />}
+      </Tool>
+      <span className="divider hide-compact" />
       {/* Hovering the sound button opens its sliders; clicking still toggles the music. */}
-      <div className="sound">
+      <div className="sound hide-compact">
         <Tool label={soundOn ? t.soundOff : t.soundOn} tip={false} onClick={() => onAction('toggleSound')}>
           {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
         </Tool>
@@ -198,7 +249,7 @@ export function Toolbar(props: Props) {
           </div>
         </div>
       </div>
-      <Tool label={t.fullscreen} keys="F" onClick={() => onAction('toggleFullscreen')}>
+      <Tool label={t.fullscreen} keys="F" className="hide-compact" onClick={() => onAction('toggleFullscreen')}>
         <Maximize {...icon} />
       </Tool>
       <button
@@ -228,6 +279,23 @@ export function Toolbar(props: Props) {
         </button>
         {moreOpen && (
           <div className="menu more" role="menu" aria-label={t.more}>
+            {/* On a compact bar these three live here instead, with the status line. */}
+            <div className="menu-info only-compact">
+              <strong>{info.title}</strong>
+              <span>{info.detail}</span>
+            </div>
+            <div className="only-compact">
+              <Item label={t.reseed} onClick={() => run('reseed')}>
+                <RotateCcw {...icon} />
+              </Item>
+              <Item label={soundOn ? t.soundOff : t.soundOn} onClick={() => run('toggleSound')}>
+                {soundOn ? <Volume2 {...icon} /> : <VolumeX {...icon} />}
+              </Item>
+              <Item label={t.fullscreen} onClick={() => run('toggleFullscreen', true)}>
+                <Maximize {...icon} />
+              </Item>
+              <hr />
+            </div>
             <Item label={t.step} keys="." onClick={() => run('step')}>
               <StepForward {...icon} />
             </Item>
@@ -235,7 +303,7 @@ export function Toolbar(props: Props) {
               <Sprout {...icon} />
             </Item>
             <Item label={t.clear} keys="C" onClick={() => run('clear')}>
-              <Eraser {...icon} />
+              <Trash2 {...icon} />
             </Item>
             <Item label={t.mutate} keys="M" onClick={() => run('mutate')}>
               <Dna {...icon} />

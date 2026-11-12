@@ -4,12 +4,13 @@ import 'dialkit/styles.css'
 import { Engine, type DisplayParams, type SeedParams, type SimParams } from './engine'
 import { DEFAULT_MODEL, MODELS, MODEL_KEYS, allParams, type ModelDef, type ParamDef } from './models'
 import { DEFAULT_PALETTE, FALLBACK_COLORS, PALETTES, PALETTE_NAMES } from './palettes'
-import { X } from 'lucide-react'
+import { Minimize, X } from 'lucide-react'
 import { createResidents } from './cat'
 import { STRINGS, canonicalValues, localizeConfig, localizeValues, soundLabel as translateSound, type Lang } from './i18n'
 import { Sound, type SoundInput } from './sound'
 import { Toolbar, type CatOptions, type SoundOptions, type ExportFormat, type ExportOptions, type RecordingInfo } from './Toolbar'
 import {
+  deliver,
   rgbToHex,
   GifRecorder,
   base64ToFloats,
@@ -43,6 +44,7 @@ const SHORTCUTS: Record<string, string> = {
   e: 'toggleExport',
   s: 'toggleSound',
   f: 'toggleFullscreen',
+  b: 'toggleEraser',
   d: 'togglePanel',
 }
 /** Size of one cat pixel in CSS pixels. Small on purpose: the cat is meant to be tiny. */
@@ -233,6 +235,8 @@ export default function App() {
   const strokeCount = useRef(0)
   const [stageSize, setStageSize] = useState<Size>(stageGuess)
   const [immersive, setImmersive] = useState(false)
+  const [erasing, setErasing] = useState(false)
+  const [hinted, setHinted] = useState(() => stored('dl:hinted') === 'yes')
   const [soundOn, setSoundOn] = useState(false)
   // The music is meant to play on its own. Browsers only allow audio after a first
   // click or key press, so until then it stays armed and starts on that gesture.
@@ -379,6 +383,8 @@ export default function App() {
     config,
     fill,
     soundOn,
+    immersive,
+    erasing,
     lang,
     t,
     cat: catOptions,
@@ -493,11 +499,37 @@ export default function App() {
 
   useEffect(() => {
     const onChange = () => setImmersive(Boolean(document.fullscreenElement))
+    // Fires only for real fullscreen; the manual mode used on iPhones is set directly.
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
 
   useEffect(() => () => soundRef.current?.stop(), [])
+
+  // Keep the screen awake while the music plays; a phone would otherwise dim and lock mid-piece.
+  useEffect(() => {
+    const wakeLock = (navigator as Any).wakeLock
+    if (!soundOn || !wakeLock) return
+    let lock: Any = null
+    let cancelled = false
+    const acquire = () => {
+      if (document.visibilityState !== 'visible') return
+      wakeLock
+        .request('screen')
+        .then((l: Any) => {
+          if (cancelled) void l.release()
+          else lock = l
+        })
+        .catch(() => {})
+    }
+    acquire()
+    document.addEventListener('visibilitychange', acquire)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', acquire)
+      void lock?.release?.().catch(() => {})
+    }
+  }, [soundOn])
 
   // The bar wraps to more rows on narrow screens; the stage and menus follow its real height.
   useEffect(() => {
@@ -821,8 +853,16 @@ export default function App() {
         setPanelOpen((open) => !open)
         break
       case 'toggleFullscreen':
+        // Real fullscreen where the browser has it. iPhones do not, so there the bar and
+        // the language switch simply step aside; either way a button brings them back.
         if (document.fullscreenElement) void document.exitFullscreen()
-        else void document.documentElement.requestFullscreen().catch(() => setStatus(L.t.noFullscreen))
+        else if (L.immersive) setImmersive(false)
+        else if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => setImmersive(true))
+        } else setImmersive(true)
+        break
+      case 'toggleEraser':
+        setErasing((on) => !on)
         break
       case 'toggleExport':
         if (!recRef.current) setMenuOpen((o) => !o)
@@ -833,7 +873,7 @@ export default function App() {
         recRef.current = null
         setRecording(null)
         if (rec.kind === 'webm') rec.rec.stop()
-        else if (rec.gif.frames > 0) download(rec.gif.finish(), fileName('gif'))
+        else if (rec.gif.frames > 0) deliver(rec.gif.finish(), fileName('gif'))
         break
       }
       case 'newSeed':
@@ -851,7 +891,7 @@ export default function App() {
       case 'svg': {
         const idx = toIndices(e.readPixels(), L.colors)
         const svg = buildSvg(idx, e.w, e.h, L.colors, L.exportScale)
-        download(new Blob([svg], { type: 'image/svg+xml' }), fileName('svg'))
+        deliver(new Blob([svg], { type: 'image/svg+xml' }), fileName('svg'))
         break
       }
       case 'webm': {
@@ -873,7 +913,7 @@ export default function App() {
         const chunks: Blob[] = []
         rec.ondataavailable = (ev) => ev.data.size && chunks.push(ev.data)
         rec.onstop = () => {
-          download(new Blob(chunks, { type: mime }), fileName(mime.includes('mp4') ? 'mp4' : 'webm'))
+          deliver(new Blob(chunks, { type: mime }), fileName(mime.includes('mp4') ? 'mp4' : 'webm'))
         }
         rec.start()
         const until = performance.now() + L.duration * 1000
@@ -940,6 +980,15 @@ export default function App() {
     if (!e) return
     const L = latest.current
     const pos = cellAt(ev)
+    cursorRef.current = { x: pos.u, y: 1 - pos.t, at: performance.now() }
+    if (!hinted) {
+      setHinted(true)
+      try {
+        localStorage.setItem('dl:hinted', 'yes')
+      } catch {
+        /* storage unavailable */
+      }
+    }
     if (L.sim.map) {
       const m: ModelDef = L.model
       const next = [...L.sim.p]
@@ -950,7 +999,7 @@ export default function App() {
       return
     }
     ev.currentTarget.setPointerCapture(ev.pointerId)
-    const erase = ev.button === 2 || ev.shiftKey
+    const erase = ev.button === 2 || ev.shiftKey || L.erasing
     stroke.current = { x: pos.x, y: pos.y, erase }
     strokeActive.current = true
     strokeCount.current++
@@ -1010,10 +1059,12 @@ export default function App() {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
-              onPointerLeave={() => (cursorRef.current = null)}
+              // A finger leaves no hover behind: keep its last spot, so the cats can walk to it.
+              onPointerLeave={(ev) => ev.pointerType === 'mouse' && (cursorRef.current = null)}
               onContextMenu={(ev) => ev.preventDefault()}
             />
             <canvas ref={catCanvasRef} className="cat" aria-hidden="true" />
+            {!hinted && <p className="paint-hint">{t.paintHint}</p>}
           </div>
         )}
       </main>
@@ -1059,6 +1110,15 @@ export default function App() {
             t={t}
             lang={lang}
             panelOpen={panelOpen}
+            erasing={erasing}
+            info={{
+              title: `${model.name}${running ? '' : ` · ${t.paused}`}`,
+              detail: soundOn
+                ? translateSound(soundLabel, lang) || t.soundLoading
+                : soundArmed
+                  ? t.soundArmed
+                  : t.soundOffInfo,
+            }}
             running={running}
             soundOn={soundOn}
             sound={soundOptions}
@@ -1075,6 +1135,16 @@ export default function App() {
         </div>
       </footer>
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} />
+      {immersive && (
+        <button
+          type="button"
+          className="exit-immersive"
+          aria-label={t.exitFullscreen}
+          onClick={() => actionRef.current('toggleFullscreen')}
+        >
+          <Minimize size={16} strokeWidth={1.75} />
+        </button>
+      )}
       {panelOpen && !immersive && (
         <aside className="sidebar" aria-label={t.controls}>
           <button

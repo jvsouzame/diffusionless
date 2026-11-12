@@ -15,6 +15,24 @@ let probe: CanvasRenderingContext2D | null = null
 const colorCache = new Map<string, RGB>()
 
 /** Accepts any CSS color the panel can produce (hex, rgb, hsl, oklch, display-p3). */
+/**
+ * Hands a finished file to the person. On touch devices this opens the system share
+ * sheet, which is how an image reaches the photo library; a plain download there lands
+ * in a files folder. Anywhere sharing is unavailable or refused, it downloads.
+ */
+export function deliver(blob: Blob, name: string) {
+  const touch = window.matchMedia('(pointer: coarse)').matches
+  const file = new File([blob], name, { type: blob.type })
+  if (touch && navigator.canShare?.({ files: [file] })) {
+    navigator.share({ files: [file] }).catch((err: unknown) => {
+      // Dismissing the sheet is a choice, not a failure.
+      if (!(err instanceof DOMException && err.name === 'AbortError')) download(blob, name)
+    })
+    return
+  }
+  download(blob, name)
+}
+
 export function hexToRgb(color: string): RGB {
   const m = /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(color.trim())
   if (m) {
@@ -80,7 +98,7 @@ export function scaledCanvas(src: HTMLCanvasElement, scale: number): HTMLCanvasE
 }
 
 export function exportPng(src: HTMLCanvasElement, scale: number, name: string) {
-  scaledCanvas(src, scale).toBlob((b) => b && download(b, name), 'image/png')
+  scaledCanvas(src, scale).toBlob((b) => b && deliver(b, name), 'image/png')
 }
 
 /**

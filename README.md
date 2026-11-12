@@ -18,6 +18,10 @@ The parameter panel is [DialKit](https://github.com/joshpuckett/dialkit). It ope
 
 The interface is in English or Portuguese (`src/i18n.ts`); the switch is always visible in the bottom bar.
 
+## On a phone
+
+The bar drops to one row with the main tools; the rest, and the status line, move into the More menu. A brush/eraser toggle (B) stands in for Shift and right-drag, a long press shows a button's name, and exports open the system share sheet. Fullscreen falls back to hiding the interface where the browser has no fullscreen API (iPhones). The site can be added to the home screen and then opens without the browser's bars.
+
 ## License
 
 AGPL-3.0-or-later, because Strudel is. See `LICENSE`.
