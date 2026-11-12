@@ -49,7 +49,7 @@ const en = {
   stop: 'Stop',
   muteHint: 'Click or press S to mute',
   playHint: 'Click or press S to play',
-  paused: 'paused',
+  paused: 'Paused',
   soundArmed: 'Sound starts with your first click or key',
   soundOffInfo: 'Sound off',
   soundLoading: 'Loading sound…',
@@ -98,7 +98,7 @@ const pt: typeof en = {
   stop: 'Parar',
   muteHint: 'Clique ou tecle S para silenciar',
   playHint: 'Clique ou tecle S para tocar',
-  paused: 'pausado',
+  paused: 'Pausado',
   soundArmed: 'O som começa no seu primeiro clique ou tecla',
   soundOffInfo: 'Som desligado',
   soundLoading: 'Carregando som…',
@@ -114,19 +114,28 @@ const pt: typeof en = {
 export type Strings = typeof en
 export const STRINGS: Record<Lang, Strings> = { en, pt }
 
-const MODES_PT: Record<string, string> = {
-  lydian: 'lídio',
-  major: 'maior',
-  mixolydian: 'mixolídio',
-  dorian: 'dórico',
-  aeolian: 'eólio',
-  phrygian: 'frígio',
+const MODES: Record<Lang, Record<string, string>> = {
+  en: {
+    lydian: 'Lydian',
+    major: 'Major',
+    mixolydian: 'Mixolydian',
+    dorian: 'Dorian',
+    aeolian: 'Aeolian',
+    phrygian: 'Phrygian',
+  },
+  pt: {
+    lydian: 'Lídio',
+    major: 'Maior',
+    mixolydian: 'Mixolídio',
+    dorian: 'Dórico',
+    aeolian: 'Eólio',
+    phrygian: 'Frígio',
+  },
 }
 
-/** "G dorian · 62 bpm" in the chosen language. */
+/** "G Dorian · 62 bpm" in the chosen language. */
 export function soundLabel(label: string, lang: Lang): string {
-  if (lang === 'en') return label
-  return label.replace(/\b(lydian|major|mixolydian|dorian|aeolian|phrygian)\b/, (mode) => MODES_PT[mode])
+  return label.replace(/\b(lydian|major|mixolydian|dorian|aeolian|phrygian)\b/, (mode) => MODES[lang][mode])
 }
 
 /** Canonical panel key to Portuguese key. */
@@ -193,16 +202,30 @@ const tables = (lang: Lang) => {
 }
 const TABLES: Record<Lang, ReturnType<typeof tables>> = { en: tables('en'), pt: tables('pt') }
 
-const OPTIONS_PT: Record<string, string> = {
-  spots: 'pontos',
-  shape: 'forma',
-  noise: 'ruído',
-  image: 'imagem',
-  dot: 'ponto',
-  ring: 'anel',
-  lines: 'linhas',
-  grid: 'grade',
-  fill: 'preencher',
+/** Display labels for select options; the stored values stay lowercase and language-neutral. */
+const OPTIONS: Record<Lang, Record<string, string>> = {
+  en: {
+    spots: 'Spots',
+    shape: 'Shape',
+    noise: 'Noise',
+    image: 'Image',
+    dot: 'Dot',
+    ring: 'Ring',
+    lines: 'Lines',
+    grid: 'Grid',
+    fill: 'Fill',
+  },
+  pt: {
+    spots: 'Pontos',
+    shape: 'Forma',
+    noise: 'Ruído',
+    image: 'Imagem',
+    dot: 'Ponto',
+    ring: 'Anel',
+    lines: 'Linhas',
+    grid: 'Grade',
+    fill: 'Preencher',
+  },
 }
 
 /*
@@ -293,7 +316,7 @@ function translateConfig(config: Any, lang: Lang): Any {
       out[name] = {
         ...c,
         options: c.options.map((o: Any) =>
-          lang === 'pt' && typeof o === 'string' && OPTIONS_PT[o] ? { value: o, label: OPTIONS_PT[o] } : o,
+          typeof o === 'string' && OPTIONS[lang][o] ? { value: o, label: OPTIONS[lang][o] } : o,
         ),
       }
     } else out[name] = c
