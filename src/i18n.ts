@@ -172,8 +172,8 @@ const PANEL_PT: Record<string, string> = {
   offset: 'Deslocamento',
   dither: 'Dithering',
   ditherSize: 'Tamanho do dithering',
-  grain: 'Grão',
-  animateGrain: 'Animar grão',
+  grain: 'Ruído',
+  animateGrain: 'Animar ruído',
   color: 'Cor',
   brushSize: 'Tamanho do pincel',
 }
