@@ -27,9 +27,9 @@ const MODE_STEPS: Record<string, number[]> = {
   phrygian: [0, 1, 3, 5, 7, 8, 10],
 }
 /**
- * Each model has its own tonic (a fifth apart), lead voice, chord progression and,
+ * Each model has its own tonic, lead voice, chord progression and,
  * above all, its own backing synth, so switching models is an audible change of scene:
- * a warm sustained saw pad, a rhythmic square organ, and a slow glassy supersaw wash.
+ * a warm sustained saw pad and a slow glassy supersaw wash.
  */
 const VOICES = [
   {
@@ -43,18 +43,6 @@ const VOICES = [
   .lpf(cut(400, 2200)).pan(sine.range(0.35, 0.65).slow(8))`,
     drone: `n("[-7,-3,0]")
   .s("sawtooth").attack(2).release(3).lpf(cut(220, 900)).pan("<0.35 0.65>/2")`,
-  },
-  {
-    tonic: 'G',
-    midi: 55,
-    lead: 'triangle',
-    roots: [0, 6, 5, 6],
-    padShift: 0,
-    pad: (chords: string) => `n("${chords}").struct("x ~ x x ~ x ~ x")
-  .s("square").decay(0.16).sustain(0.2).release(0.1)
-  .lpf(cut(500, 2800)).phaser(0.5).pan("<0.3 0.7>")`,
-    drone: `n("-7*4")
-  .s("square").decay(0.2).sustain(0.3).release(0.1).lpf(cut(160, 520))`,
   },
   {
     tonic: 'D',
@@ -81,7 +69,7 @@ const FADE_IN = 1
 const FADE_OUT = 5
 
 export type SoundInput = {
-  /** Model index, 0 to 2. */
+  /** Model index, 0 or 1. */
   model: number
   /** Normalized position of the two pad parameters, 0 to 1. */
   padX: number
@@ -429,14 +417,14 @@ export class Sound {
 
   /**
    * The sound of touching the canvas, different in each model so the gesture itself
-   * changes character: soft rising plucks, low percussive stabs, or slow glassy bells.
+   * changes character: soft rising plucks or slow glassy bells.
    * `height` and `across` are the pointer position, 0 to 1.
    */
   ornament(height: number, across = 0.5) {
     if (!this.ready) return
     const model = this.current!.model
     const now = performance.now()
-    if (now - this.lastOrnament < [140, 105, 280][model]) return
+    if (now - this.lastOrnament < [140, 280][model]) return
     this.lastOrnament = now
     const register = this.current!.register
     const pan = 0.2 + 0.6 * sat(across)
@@ -444,11 +432,6 @@ export class Sound {
       // Gray-Scott: one plucked note per step, climbing with the pointer.
       const degree = Math.floor(sat(height) * 10) + 7 + register
       this.shot({ s: 'triangle', note: this.midi(degree), gain: 0.3, decay: 0.3, sustain: 0, release: 0.2, lpf: 2600, pan }, 0, 0.3)
-    } else if (model === 1) {
-      // FitzHugh-Nagumo: a dry, low square stab over a sub note, like striking the medium.
-      const degree = Math.floor(sat(height) * 7) + register
-      this.shot({ s: 'square', note: this.midi(degree), gain: 0.24, decay: 0.09, sustain: 0, release: 0.05, lpf: 1400, room: 0.1, delay: 0, pan }, 0, 0.1)
-      this.shot({ s: 'sine', note: this.midi(degree - 7), gain: 0.3, decay: 0.14, sustain: 0, release: 0.06, room: 0, delay: 0 }, 0, 0.14)
     } else {
       // Belousov-Zhabotinsky: a slow FM bell and its third, ringing into the room.
       const degree = Math.floor(sat(height) * 9) + 9 + register

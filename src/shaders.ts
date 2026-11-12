@@ -46,21 +46,14 @@ ivec2 noiseFreq(int scale) {
   float m = max(uRes.x, uRes.y);
   return max(ivec2(1), ivec2(round(float(scale) * uRes / m)));
 }
-// Gray-Scott rests on an empty field. The other two need variation everywhere:
-// FitzHugh-Nagumo gets smooth offset fields (their crossings become spiral cores)
-// and Belousov-Zhabotinsky gets white noise, since it cannot grow out of zeros.
+// Gray-Scott rests on an empty field. Belousov-Zhabotinsky gets white noise
+// everywhere, since it cannot grow out of zeros.
 vec4 baseState(ivec2 p) {
   if (uModel == 0) return vec4(1.0, 0.0, 0.0, 1.0);
-  if (uModel == 1) {
-    vec2 uv = (vec2(p) + 0.5) / uRes;
-    ivec2 fq = noiseFreq(5);
-    return vec4(0.9 * (fbm(uv, fq, uSeed + 41) * 2.0 - 1.0), 0.6 * (fbm(uv, fq, uSeed + 83) * 2.0 - 1.0), 0.0, 1.0);
-  }
   return vec4(hashv(p, uSeed + 5), 1.0);
 }
 vec4 seededState(ivec2 p) {
   if (uModel == 0) return vec4(0.5, 1.0, 0.0, 1.0);
-  if (uModel == 1) return vec4(1.0, -0.2, 0.0, 1.0);
   // Each stroke lays the next species in the cycle, so strokes that meet curl into spirals.
   if (uPhase == 1) return vec4(0.0, 1.0, 0.0, 1.0);
   if (uPhase == 2) return vec4(0.0, 0.0, 1.0, 1.0);
@@ -112,16 +105,6 @@ void main() {
     r.g = B + uP[3] * lap.g + rr - (p0 + p1) * B;
     r.rg += uJitter * 0.05 * jitter.rg;
     r.rg = clamp(r.rg, 0.0, 1.0);
-  } else if (uModel == 1) {
-    float Du = uP[3];
-    float Dv = uP[4];
-    float dt = min(0.2, 1.0 / (1.6 * max(max(Du, Dv), 0.001)));
-    float u = c.r;
-    float v = c.g;
-    r.r = u + dt * (Du * lap.r + u - u * u * u - v);
-    r.g = v + dt * (Dv * lap.g + uP[2] * (u - p1 * v - p0));
-    r.rg += uJitter * 0.6 * dt * jitter.rg;
-    r.rg = clamp(r.rg, -2.0, 2.0);
   } else {
     // Three species in cyclic competition: each is suppressed weakly (alpha) by the
     // next one and strongly (beta) by the one after, which rolls up into spiral waves.
@@ -255,7 +238,6 @@ void main() {
   vec4 c = texture(uState, gl_FragCoord.xy / uRes);
   float t;
   if (uModel == 0) t = c.g * 2.5;
-  else if (uModel == 1) t = (c.r + 1.1) / 2.2;
   else t = c.r;
   t = (clamp(t, 0.0, 1.0) - 0.5) * uContrast + 0.5 + uOffset;
   if (uInvert) t = 1.0 - t;

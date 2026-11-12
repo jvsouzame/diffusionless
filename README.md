@@ -7,7 +7,7 @@ npm install
 npm run dev
 ```
 
-- **Models:** Gray-Scott, FitzHugh-Nagumo and a three-species cyclic model in the Belousov-Zhabotinsky style.
+- **Models:** Gray-Scott and a three-species cyclic model in the Belousov-Zhabotinsky style.
 - **Explore:** Randomize (X), Mutate (M), the XY pad, and Parameter Map (P): the two pad parameters spread across the canvas; click to pick.
 - **Canvas:** fills the window by default; drag to paint, Shift or right-drag to erase. F toggles fullscreen.
 - **Sound:** written in [Strudel](https://strudel.cc) (`src/sound.ts`). It starts on the first click or key press and S turns it off with a fade. Model, parameters, palette, tone, seed, brush and the state of the canvas steer tonic, mode, filter, layers and tempo.

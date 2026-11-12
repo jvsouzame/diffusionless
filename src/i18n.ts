@@ -151,13 +151,9 @@ const PANEL_PT: Record<string, string> = {
   model: 'Modelo',
   preset: 'Predefinição',
   killFeed: 'Kill e feed',
-  biasGain: 'Viés e ganho',
   rates: 'Taxas',
   diffusionA: 'Difusão A',
   diffusionB: 'Difusão B',
-  epsilon: 'Épsilon',
-  diffusionU: 'Difusão U',
-  diffusionV: 'Difusão V',
   diffusion: 'Difusão',
   rate: 'Ritmo',
   explore: 'Explorar',
@@ -197,11 +193,11 @@ const PANEL_PT: Record<string, string> = {
 for (let i = 1; i <= 8; i++) PANEL_PT[`color${i}`] = `Cor ${i}`
 
 /**
- * The three model folders are all titled "Model". DialKit trims the key to make the
+ * The model folders are all titled "Model". DialKit trims the key to make the
  * label, so their keys differ only by trailing spaces, which keeps one model's
  * parameters from being read as another's.
  */
-const MODEL_FOLDERS = ['grayScott', 'fitzhughNagumo', 'belousovZhabotinsky']
+const MODEL_FOLDERS = ['grayScott', 'belousovZhabotinsky']
 const tables = (lang: Lang) => {
   const forward: Record<string, string> = lang === 'pt' ? { ...PANEL_PT } : {}
   MODEL_FOLDERS.forEach((key, i) => (forward[key] = (lang === 'pt' ? 'Modelo' : 'Model') + ' '.repeat(i + 1)))

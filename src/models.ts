@@ -54,51 +54,10 @@ export const MODELS: Record<string, ModelDef> = {
       return [kill, feed, 1, range(rnd, 0.35, 0.55)]
     },
   },
-  fitzhughNagumo: {
-    key: 'fitzhughNagumo',
-    name: 'FitzHugh-Nagumo',
-    index: 1,
-    padKey: 'biasGain',
-    padX: { key: 'bias', label: 'bias', def: -0.02, min: -1, max: 1, step: 0.005 },
-    padY: { key: 'gain', label: 'gain', def: 1, min: 0, max: 2, step: 0.005 },
-    params: [
-      { key: 'epsilon', label: 'Epsilon', def: 0.9, min: 0.005, max: 1, step: 0.005 },
-      { key: 'diffusionU', label: 'Diffusion U', def: 0.25, min: 0.05, max: 1, step: 0.01 },
-      { key: 'diffusionV', label: 'Diffusion V', def: 5, min: 0, max: 8, step: 0.05 },
-    ],
-    presets: [
-      { name: 'Maze', values: [-0.02, 1, 0.9, 0.25, 5] },
-      { name: 'Lattice', values: [-0.1, 1, 0.5, 0.25, 5] },
-      { name: 'Spots', values: [-0.17, 1, 0.5, 0.25, 5] },
-      { name: 'Pulse', values: [-0.1, 0.5, 0.2, 0.25, 5] },
-      { name: 'Spirals', values: [0, 0, 0.03, 0.5, 0] },
-      { name: 'Waves', values: [-0.5, 0, 0.05, 0.6, 0] },
-      { name: 'Fine Maze', values: [-0.08, 1, 0.6, 0.1, 2.5] },
-    ],
-    randomize: (rnd) => {
-      if (rnd() < 0.6) {
-        const sign = rnd() < 0.5 ? -1 : 1
-        return [
-          sign * range(rnd, 0.07, 0.2),
-          range(rnd, 0.8, 1.2),
-          range(rnd, 0.35, 0.8),
-          range(rnd, 0.1, 0.3),
-          range(rnd, 3, 7),
-        ]
-      }
-      return [
-        range(rnd, -0.5, 0.5),
-        range(rnd, 0, 0.5),
-        range(rnd, 0.01, 0.1),
-        range(rnd, 0.3, 1),
-        range(rnd, 0, 0.3),
-      ]
-    },
-  },
   belousovZhabotinsky: {
     key: 'belousovZhabotinsky',
     name: 'Belousov-Zhabotinsky',
-    index: 2,
+    index: 1,
     padKey: 'rates',
     padX: { key: 'alpha', label: 'alpha', def: 0.5, min: 0, max: 1.2, step: 0.005 },
     padY: { key: 'beta', label: 'beta', def: 2, min: 0.8, max: 3, step: 0.005 },
